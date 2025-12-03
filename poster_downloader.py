@@ -4,7 +4,7 @@ import sys
 from typing import Optional
 from dotenv import load_dotenv
 
-if getattr(sys, 'frozen', False):
+if getattr(sys, "frozen", False):
     exe_dir = os.path.dirname(sys.executable)
 else:
     exe_dir = os.path.dirname(os.path.abspath(__file__))
@@ -25,16 +25,70 @@ BASE_URL = "https://api.themoviedb.org/3"
 IMAGE_BASE = "https://image.tmdb.org/t/p/original"
 
 
-def search_media(title: str, media_type: str = "auto") -> Optional[dict]:
+def search_media(
+    title: str, media_type: str = "auto", interactive: bool = True
+) -> Optional[dict]:
     """Busca película o serie en TMDB."""
     if media_type == "auto":
-        movie = search_media(title, "movie")
-        tv = search_media(title, "tv")
-        if movie and tv:
-            return (
-                movie if movie.get("popularity", 0) >= tv.get("popularity", 0) else tv
-            )
-        return movie or tv
+        # Buscar en ambas categorías
+        all_results = []
+
+        for mtype in ["movie", "tv"]:
+            endpoint = f"search/{mtype}"
+            response = requests.get(
+                f"{BASE_URL}/{endpoint}",
+                params={"api_key": API_KEY, "query": title, "language": "es-ES"},
+            ).json()
+
+            if response.get("results"):
+                for result in response["results"][:5]:  # Máximo 5 por tipo
+                    result["media_type"] = mtype
+                    all_results.append(result)
+
+        if not all_results:
+            return None
+
+        # Si solo hay un resultado, devolverlo directamente
+        if len(all_results) == 1:
+            return all_results[0]
+
+        # Si hay múltiples resultados y es modo interactivo, mostrar opciones
+        if interactive:
+            print(f"\n🔍 Encontrados {len(all_results)} resultados para '{title}':")
+            print("=" * 50)
+
+            for idx, result in enumerate(all_results, 1):
+                result_title = result.get("title") or result.get("name")
+                year = ""
+                if result.get("release_date"):
+                    year = f" ({result['release_date'][:4]})"
+                elif result.get("first_air_date"):
+                    year = f" ({result['first_air_date'][:4]})"
+
+                tipo = "🎬 Película" if result["media_type"] == "movie" else "📺 Serie"
+                print(f"  {idx}. {result_title}{year} - {tipo}")
+
+            print("\n👉 Elige el número (o Enter para el primero): ", end="")
+            choice = input().strip()
+
+            if choice == "":
+                return all_results[0]
+
+            try:
+                idx = int(choice) - 1
+                if 0 <= idx < len(all_results):
+                    return all_results[idx]
+                else:
+                    print("⚠️  Número inválido, seleccionando el primero...")
+                    return all_results[0]
+            except ValueError:
+                print("⚠️  Entrada inválida, seleccionando el primero...")
+                return all_results[0]
+        else:
+            # Modo no interactivo (batch): devolver el más popular
+            return max(all_results, key=lambda x: x.get("popularity", 0))
+
+    # Búsqueda específica por tipo
     endpoint = "search/movie" if media_type == "movie" else "search/tv"
     response = requests.get(
         f"{BASE_URL}/{endpoint}",
@@ -69,10 +123,13 @@ def get_poster_url(media_id: int, media_type: str) -> Optional[str]:
 
 
 def download_poster(
-    title: str, media_type: str = "auto", output_folder: str = "posters"
+    title: str,
+    media_type: str = "auto",
+    output_folder: str = "posters",
+    interactive: bool = True,
 ) -> Optional[str]:
     os.makedirs(output_folder, exist_ok=True)
-    media = search_media(title, media_type)
+    media = search_media(title, media_type, interactive=interactive)
     if not media:
         print(f"❌ No encontrado: {title}")
         return None
@@ -99,7 +156,7 @@ def download_batch(
     print(f"📥 Descargando {len(titles)} títulos...\n")
     results = {"ok": [], "fail": []}
     for title in titles:
-        path = download_poster(title, media_type, output_folder)
+        path = download_poster(title, media_type, output_folder, interactive=False)
         if path:
             results["ok"].append(title)
         else:
@@ -139,6 +196,6 @@ if __name__ == "__main__":
         except FileNotFoundError:
             print(f"❌ No se encontró el archivo: {arg}")
     else:
-        download_poster(arg)
+        download_poster(arg, interactive=True)
 
     input("\nPulsa Enter para salir...")
