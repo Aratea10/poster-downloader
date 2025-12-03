@@ -165,6 +165,16 @@ if __name__ == "__main__":
 
     if len(sys.argv) > 1:
         arg = sys.argv[1]
+        if arg.endswith(".txt"):
+            try:
+                with open(arg, "r", encoding="utf-8") as f:
+                    titles = [line.strip() for line in f if line.strip()]
+                download_batch(titles)
+            except FileNotFoundError:
+                print(f"❌ No se encontró el archivo: {arg}")
+        else:
+            download_poster(arg, interactive=True)
+        input("\nPulsa Enter para salir...")
     else:
         print("=" * 50)
         print("🎬 POSTER DOWNLOADER")
@@ -172,22 +182,26 @@ if __name__ == "__main__":
         print("\nOpciones:")
         print("  1. Escribe el título de una película/serie")
         print("  2. Escribe la ruta a un archivo .txt con títulos")
+        print("  3. Escribe 'salir' para cerrar el programa")
         print()
-        arg = input("👉 Título o archivo: ").strip()
 
-    if not arg:
-        print("❌ No has introducido nada.")
-        input("\nPulsa Enter para salir...")
-        sys.exit(1)
+        while True:
+            arg = input("\n👉 Título o archivo (o 'salir'): ").strip()
 
-    if arg.endswith(".txt"):
-        try:
-            with open(arg, "r", encoding="utf-8") as f:
-                titles = [line.strip() for line in f if line.strip()]
-            download_batch(titles)
-        except FileNotFoundError:
-            print(f"❌ No se encontró el archivo: {arg}")
-    else:
-        download_poster(arg, interactive=True)
+            if not arg:
+                print("⚠️  No has introducido nada, intenta de nuevo.")
+                continue
 
-    input("\nPulsa Enter para salir...")
+            if arg.lower() in ["salir", "exit", "quit", "q"]:
+                print("\n👋 ¡Hasta luego!")
+                break
+
+            if arg.endswith(".txt"):
+                try:
+                    with open(arg, "r", encoding="utf-8") as f:
+                        titles = [line.strip() for line in f if line.strip()]
+                    download_batch(titles)
+                except FileNotFoundError:
+                    print(f"❌ No se encontró el archivo: {arg}")
+            else:
+                download_poster(arg, interactive=True)
