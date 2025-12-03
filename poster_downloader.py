@@ -28,9 +28,7 @@ IMAGE_BASE = "https://image.tmdb.org/t/p/original"
 def search_media(
     title: str, media_type: str = "auto", interactive: bool = True
 ) -> Optional[dict]:
-    """Busca película o serie en TMDB."""
     if media_type == "auto":
-        # Buscar en ambas categorías
         all_results = []
 
         for mtype in ["movie", "tv"]:
@@ -48,11 +46,9 @@ def search_media(
         if not all_results:
             return None
 
-        # Si solo hay un resultado, devolverlo directamente
         if len(all_results) == 1:
             return all_results[0]
 
-        # Si hay múltiples resultados y es modo interactivo, mostrar opciones
         if interactive:
             print(f"\n🔍 Encontrados {len(all_results)} resultados para '{title}':")
             print("=" * 50)
@@ -85,10 +81,8 @@ def search_media(
                 print("⚠️  Entrada inválida, seleccionando el primero...")
                 return all_results[0]
         else:
-            # Modo no interactivo (batch): devolver el más popular
             return max(all_results, key=lambda x: x.get("popularity", 0))
 
-    # Búsqueda específica por tipo
     endpoint = "search/movie" if media_type == "movie" else "search/tv"
     response = requests.get(
         f"{BASE_URL}/{endpoint}",
@@ -102,17 +96,17 @@ def search_media(
 
 
 def get_poster_url(media_id: int, media_type: str) -> Optional[str]:
-    """Obtiene la URL del poster con mayor resolución, priorizando España y luego US."""
+    """Obtiene la URL del poster con mayor resolución, priorizando pósters neutros y US"""
     endpoint = f"movie/{media_id}" if media_type == "movie" else f"tv/{media_id}"
     images = requests.get(
         f"{BASE_URL}/{endpoint}/images",
-        params={"api_key": API_KEY, "include_image_language": "es,en,null"},
+        params={"api_key": API_KEY, "include_image_language": "en,null"},
     ).json()
     posters = images.get("posters", [])
     if not posters:
         return None
 
-    for lang in ["es", "en", None]:
+    for lang in [None, "en"]:
         lang_posters = [p for p in posters if p["iso_639_1"] == lang]
         if lang_posters:
             best_poster = max(lang_posters, key=lambda p: p.get("width", 0))
@@ -152,7 +146,6 @@ def download_poster(
 def download_batch(
     titles: list[str], media_type: str = "auto", output_folder: str = "posters"
 ):
-    """Descarga posters en lote desde una lista."""
     print(f"📥 Descargando {len(titles)} títulos...\n")
     results = {"ok": [], "fail": []}
     for title in titles:
