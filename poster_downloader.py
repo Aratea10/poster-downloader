@@ -96,7 +96,6 @@ def search_media(
 
 
 def get_poster_url(media_id: int, media_type: str) -> Optional[str]:
-    """Obtiene la URL del poster con mayor resolución de US"""
     endpoint = f"movie/{media_id}" if media_type == "movie" else f"tv/{media_id}"
     images = requests.get(
         f"{BASE_URL}/{endpoint}/images",
@@ -108,11 +107,9 @@ def get_poster_url(media_id: int, media_type: str) -> Optional[str]:
 
     en_posters = [p for p in posters if p["iso_639_1"] == "en"]
     if en_posters:
-        best_poster = max(en_posters, key=lambda p: p.get("width", 0))
-        return IMAGE_BASE + best_poster["file_path"]
+        return IMAGE_BASE + en_posters[0]["file_path"]
 
-    best_poster = max(posters, key=lambda p: p.get("width", 0))
-    return IMAGE_BASE + best_poster["file_path"]
+    return IMAGE_BASE + posters[0]["file_path"]
 
 
 def download_poster(
