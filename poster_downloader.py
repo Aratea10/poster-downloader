@@ -39,7 +39,7 @@ def search_media(
             ).json()
 
             if response.get("results"):
-                for result in response["results"][:5]:  # Máximo 5 por tipo
+                for result in response["results"][:5]:
                     result["media_type"] = mtype
                     all_results.append(result)
 
@@ -99,14 +99,28 @@ def get_poster_url(media_id: int, media_type: str) -> Optional[str]:
     endpoint = f"movie/{media_id}" if media_type == "movie" else f"tv/{media_id}"
     images = requests.get(
         f"{BASE_URL}/{endpoint}/images",
-        params={"api_key": API_KEY, "include_image_language": "en"},
+        params={"api_key": API_KEY, "include_image_language": "es,en,null"},
     ).json()
     posters = images.get("posters", [])
     if not posters:
         return None
 
-    en_posters = [p for p in posters if p["iso_639_1"] == "en"]
+    es_spain_posters = [
+        p for p in posters if p.get("iso_639_1") == "es" and p.get("iso_3166_1") == "ES"
+    ]
+    if es_spain_posters:
+        es_spain_posters.sort(
+            key=lambda x: x.get("vote_average", 0) * x.get("vote_count", 0),
+            reverse=True,
+        )
+        return IMAGE_BASE + es_spain_posters[0]["file_path"]
+
+    en_posters = [p for p in posters if p.get("iso_639_1") == "en"]
     if en_posters:
+        en_posters.sort(
+            key=lambda x: x.get("vote_average", 0) * x.get("vote_count", 0),
+            reverse=True,
+        )
         return IMAGE_BASE + en_posters[0]["file_path"]
 
     return IMAGE_BASE + posters[0]["file_path"]
